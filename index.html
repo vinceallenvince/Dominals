@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv='content-type' content='text/html; charset=UTF-8' />
+    <meta name='viewport' content='user-scalable=no, width=device-width, initial-scale=1.0, maximum-scale=1.0' />
+    <meta name='apple-mobile-web-app-capable' content='yes' />
+    <title>SuperSimpleSim</title>
+    <link href='css/SuperSimpleSim.min.css' rel='stylesheet' type='text/css' charset='utf-8' />
+    <script src='scripts/SuperSimpleSim.js' type='text/javascript' charset='utf-8'></script>
+    <script src='scripts/SimplexNoise.js' type='text/javascript' charset='utf-8'></script>
+    <script src='scripts/Friend.js' type='text/javascript' charset='utf-8'></script>
+    <script src='scripts/Pilot.js' type='text/javascript' charset='utf-8'></script>
+    <script src='scripts/Parts/Wing.js' type='text/javascript' charset='utf-8'></script>
+    <script src='scripts/Parts/WingTip.js' type='text/javascript' charset='utf-8'></script>
+    <script src='scripts/Parts/Propeller.js' type='text/javascript' charset='utf-8'></script>
+    <script src='scripts/Parts/FriendBody.js' type='text/javascript' charset='utf-8'></script>
+    <script src='scripts/Parts/Signal.js' type='text/javascript' charset='utf-8'></script>
+    <script src='scripts/Walker/Walker.js' type='text/javascript' charset='utf-8'></script>
+  </head>
+  <body>
+    <script type='text/javascript' charset='utf-8'>
+
+      var sssim = SuperSimpleSim;
+      var width = document.body.scrollWidth;
+      var height = document.body.scrollHeight;
+      var center = new sssim.Vector(width / 2, height / 2);
+      var rand = sssim.System.getRandomNumber;
+      var map = sssim.System.map;
+
+      sssim.System.Classes.Friend = Friend;
+      sssim.System.Classes.Wing = Wing;
+      sssim.System.Classes.WingTip = WingTip;
+      sssim.System.Classes.Propeller = Propeller;
+      sssim.System.Classes.FriendBody = FriendBody;
+      sssim.System.Classes.Signal = Signal;
+      sssim.System.Classes.Walker = Walker;
+      sssim.System.Classes.Pilot = Pilot;
+
+
+        function createFriend(opt_options) {
+
+          var options = opt_options;
+
+          var friend = this.add('Friend', {
+            location: new sssim.Vector(center.x, center.y).div(1),
+            colorMode: 'hsl',
+            color: [50, 50, 100],
+            width: 10,
+            height: 10,
+            mass: 400,
+            angle: 0,
+            borderRadius: 50,
+            signals: [],
+            signalTimeout: 0,
+            checkWorldEdges: false,
+            motorSpeed: 0,
+            //seekTarget: options.seekTarget,
+            beforeStep: function() {
+              if (!this.signalTimeout) {
+                var signals = this.signals;
+                this.signalTimeout = setTimeout(function() {
+                  var len = signals.length;
+                  for (var i = 0; i < len; i++) {
+                    signals[i].activate(i);
+                  }
+                }, 1000);
+              }
+            }
+          });
+
+          var wing = this.add('Wing', {
+            parent: friend,
+            width: options.wingWidth,
+            height: 1
+          });
+
+          var wingRight = this.add('Propeller', {
+            parent: wing,
+            width: options.wingTipRightScale * 2,
+            height: 1,
+            parentOffsetDistance: options.wingWidth / 2,
+            parentOffsetAngle: 0,
+            beforeStep: function() {
+              this.angle += 10;
+            }
+          });
+
+          var wingLeft = this.add('Propeller', {
+            parent: wing,
+            width: options.wingTipLeftScale * 2,
+            height: 1,
+            parentOffsetDistance: -options.wingWidth / 2,
+            parentOffsetAngle: 0,
+            beforeStep: function() {
+              this.angle += 20;
+            }
+          });
+
+          var wingTipRight = this.add('WingTip', {
+            parent: wing,
+            colorMode: 'hsl',
+            color: [50, 100, 50],
+            width: options.wingTipRightScale,
+            height: options.wingTipRightScale,
+            borderRadius: 50,
+            boxShadowColor: [40, 100, 100],
+            boxShadowSpread: 10,
+            boxShadowBlur: 0,
+            parentOffsetDistance: options.wingWidth / 2,
+            parentOffsetAngle: 0,
+            opacity: 0.5
+          });
+
+          var wingTipLeft = this.add('WingTip', {
+            parent: wing,
+            colorMode: 'hsl',
+            color: [50, 100, 50],
+            width: options.wingTipLeftScale,
+            height: options.wingTipLeftScale,
+            borderRadius: 50,
+            parentOffsetDistance: -options.wingWidth / 2,
+            parentOffsetAngle: 0
+          });
+
+          var friendBody = this.add('FriendBody', {
+            parent: friend,
+            colorMode: 'hsl',
+            color: [0, 0, 100],
+            width: 30,
+            height: 30,
+            beforeStep: function() {
+              this.angle++;
+            }
+          });
+
+          friend.signals.push(this.add('Signal', {
+            parent: friendBody,
+            width: 20,
+            height: 20,
+            colorMode: 'hsl',
+            color: [0, 50, 40],
+            defaultColor: [0, 50, 40],
+            borderRadius: 50,
+            parentOffsetDistance: 25,
+            parentOffsetAngle: 0,
+            activeColor: [0, 100, 50],
+            activeLength: 1000,
+            boxShadowSpread: 10,
+            boxShadowColor: [0, 50, 50],
+            activate: function(i) {
+              var me = this;
+              setTimeout(function() {
+                me.color = me.activeColor;
+              }, i * 100);
+              setTimeout(this.deactivate.bind(this), this.activeLength + (i * 100));
+            },
+            deactivate: function() {
+              this.color = this.defaultColor;
+            }
+          }));
+
+          friend.signals.push(this.add('Signal', {
+            parent: friendBody,
+            width: 20,
+            height: 20,
+            colorMode: 'hsl',
+            color: [10, 50, 40],
+            defaultColor: [10, 50, 40],
+            borderRadius: 50,
+            parentOffsetDistance: 25,
+            parentOffsetAngle: 90,
+            activeColor: [10, 100, 50],
+            activeLength: 1000,
+            boxShadowSpread: 10,
+            boxShadowColor: [10, 50, 50],
+            activate: function(i) {
+              var me = this;
+              setTimeout(function() {
+                me.color = me.activeColor;
+              }, i * 100);
+              setTimeout(this.deactivate.bind(this), this.activeLength + (i * 100));
+            },
+            deactivate: function() {
+              this.color = this.defaultColor;
+            }
+          }));
+
+          friend.signals.push(this.add('Signal', {
+            parent: friendBody,
+            width: 20,
+            height: 20,
+            colorMode: 'hsl',
+            color: [20, 50, 40],
+            defaultColor: [20, 50, 40],
+            borderRadius: 50,
+            parentOffsetDistance: 25,
+            parentOffsetAngle: 180,
+            activeColor: [20, 100, 50],
+            activeLength: 1000,
+            boxShadowSpread: 10,
+            boxShadowColor: [20, 50, 50],
+            activate: function(i) {
+              var me = this;
+              setTimeout(function() {
+                me.color = me.activeColor;
+              }, i * 100);
+              setTimeout(this.deactivate.bind(this), this.activeLength + (i * 100));
+            },
+            deactivate: function() {
+              this.color = this.defaultColor;
+            }
+          }));
+
+          friend.signals.push(this.add('Signal', {
+            parent: friendBody,
+            width: 20,
+            height: 20,
+            colorMode: 'hsl',
+            color: [30, 50, 40],
+            defaultColor: [30, 50, 40],
+            borderRadius: 50,
+            parentOffsetDistance: 25,
+            parentOffsetAngle: 270,
+            activeColor: [30, 100, 50],
+            activeLength: 1000,
+            boxShadowSpread: 10,
+            boxShadowColor: [30, 50, 50],
+            activate: function(i) {
+              var me = this;
+              setTimeout(function() {
+                me.color = me.activeColor;
+              }, i * 100);
+              setTimeout(this.deactivate.bind(this), this.activeLength + (i * 100));
+            },
+            deactivate: function() {
+              this.color = this.defaultColor;
+              friend.signalTimeout = 0;
+            }
+          }));
+
+        }
+
+
+      sssim.System.setup(function() {
+
+        this.gravity.y = 0;
+
+
+        var walker = this.add('Walker', {
+          //visibility: 'hidden'
+        });
+
+        createFriend.call(this, {
+          wingWidth: rand(100, 200),
+          wingTipLeftScale: rand(10, 60),
+          wingTipRightScale: rand(10, 60),
+          seekTarget: null
+        });
+
+        // Pilot
+
+        /*var pilot = this.add('Pilot', {
+          location: new sssim.Vector(center.x, center.y),
+          colorMode: 'hsl',
+          color: [50, 50, 80],
+          width: 20,
+          height: 20,
+          mass: 300,
+          angle: 0,
+          borderRadius: 50,
+          boxShadowSpread: 15,
+          boxShadowColor: [0, 50, 100],
+          signals: [],
+          signalTimeout: 0,
+          checkWorldEdges: false,
+          motorSpeed: 0,
+          name: 'myPilot',
+          seekTarget: walker,
+          beforeStep: function() {
+            if (!this.signalTimeout) {
+              var signals = this.signals;
+              this.signalTimeout = setTimeout(function() {
+                var len = signals.length;
+                for (var i = 0; i < len; i++) {
+                  signals[i].activate(i);
+                }
+              }, 500);
+            }
+          }
+        });
+
+        var wing = this.add('Wing', {
+          parent: pilot,
+          width: 80,
+          height: 1,
+          parentOffsetDistance: -60,
+          parentOffsetAngle: 0
+        });
+
+        var propBottom = this.add('Propeller', {
+          parent: wing,
+          width: 60,
+          height: 1,
+          parentOffsetDistance: -40,
+          parentOffsetAngle: 0,
+          beforeStep: function() {
+            this.angle += 10;
+          }
+        });
+
+        var wingTip = this.add('WingTip', {
+          parent: wing,
+          colorMode: 'hsl',
+          color: [50, 100, 50],
+          width: 40,
+          height: 40,
+          borderRadius: 50,
+          parentOffsetDistance: -40,
+          parentOffsetAngle: 0
+        });
+
+        var wingSide = this.add('Wing', {
+          parent: pilot,
+          width: 1,
+          height: 50,
+          parentOffsetDistance: 50,
+          parentOffsetAngle: 150
+        });
+
+        var propSide = this.add('Propeller', {
+          parent: wingSide,
+          width: 30,
+          height: 1,
+          parentOffsetDistance: 20,
+          parentOffsetAngle: 90,
+          beforeStep: function() {
+            this.angle += 20;
+          }
+        });
+
+        var wingTip = this.add('WingTip', {
+          parent: wingSide,
+          colorMode: 'hsl',
+          color: [50, 100, 50],
+          width: 10,
+          height: 10,
+          borderRadius: 50,
+          parentOffsetDistance: 20,
+          parentOffsetAngle: 90
+        });
+
+        pilot.signals.push(this.add('Signal', {
+          parent: pilot,
+          width: 20,
+          height: 20,
+          colorMode: 'hsl',
+          color: [0, 50, 40],
+          defaultColor: [0, 50, 40],
+          borderRadius: 50,
+          parentOffsetDistance: 25,
+          parentOffsetAngle: 0,
+          activeColor: [0, 100, 50],
+          activeLength: 500,
+          boxShadowSpread: 5,
+          boxShadowColor: [0, 50, 50],
+          activate: function(i) {
+            var me = this;
+            setTimeout(function() {
+              me.color = me.activeColor;
+            }, i * 50);
+            setTimeout(this.deactivate.bind(this), this.activeLength + (i * 50));
+          },
+          deactivate: function() {
+            this.color = this.defaultColor;
+          }
+        }));
+
+        pilot.signals.push(this.add('Signal', {
+          parent: pilot,
+          width: 20,
+          height: 20,
+          colorMode: 'hsl',
+          color: [10, 50, 40],
+          defaultColor: [10, 50, 40],
+          borderRadius: 50,
+          parentOffsetDistance: 25,
+          parentOffsetAngle: 90,
+          activeColor: [10, 100, 50],
+          activeLength: 500,
+          boxShadowSpread: 5,
+          boxShadowColor: [10, 50, 50],
+          activate: function(i) {
+            var me = this;
+            setTimeout(function() {
+              me.color = me.activeColor;
+            }, i * 50);
+            setTimeout(this.deactivate.bind(this), this.activeLength + (i * 50));
+          },
+          deactivate: function() {
+            this.color = this.defaultColor;
+          }
+        }));
+
+        pilot.signals.push(this.add('Signal', {
+          parent: pilot,
+          width: 20,
+          height: 20,
+          colorMode: 'hsl',
+          color: [20, 50, 40],
+          defaultColor: [20, 50, 40],
+          borderRadius: 50,
+          parentOffsetDistance: 25,
+          parentOffsetAngle: 180,
+          activeColor: [20, 100, 50],
+          activeLength: 500,
+          boxShadowSpread: 5,
+          boxShadowColor: [20, 50, 50],
+          activate: function(i) {
+            var me = this;
+            setTimeout(function() {
+              me.color = me.activeColor;
+            }, i * 50);
+            setTimeout(this.deactivate.bind(this), this.activeLength + (i * 50));
+          },
+          deactivate: function() {
+            this.color = this.defaultColor;
+          }
+        }));
+
+        pilot.signals.push(this.add('Signal', {
+          parent: pilot,
+          width: 20,
+          height: 20,
+          colorMode: 'hsl',
+          color: [30, 50, 40],
+          defaultColor: [30, 50, 40],
+          borderRadius: 50,
+          parentOffsetDistance: 25,
+          parentOffsetAngle: 270,
+          activeColor: [30, 100, 50],
+          activeLength: 500,
+          boxShadowSpread: 5,
+          boxShadowColor: [30, 50, 50],
+          activate: function(i) {
+            var me = this;
+            setTimeout(function() {
+              me.color = me.activeColor;
+            }, i * 50);
+            setTimeout(this.deactivate.bind(this), this.activeLength + (i * 50));
+          },
+          deactivate: function() {
+            this.color = this.defaultColor;
+            pilot.signalTimeout = 0;
+          }
+        }));*/
+
+        // Friend
+
+
+
+
+
+      });
+
+      sssim.System.loop();
+
+      /*document.addEventListener('keydown', function(e) {
+
+        switch(e.keyCode) {
+          case 39: // right
+            friend.angle += 10;
+            break;
+          case 37: // left
+            friend.angle -= 10;
+            break;
+        }
+
+      }, false);*/
+
+    </script>
+  </body>
+</html>
